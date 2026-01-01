@@ -52,3 +52,22 @@ src/main/resources/export/outpatient_rev_cntr_code_map.json
 # VS Code plugin files
 .history
 .serena/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+*.egg-info/
+
+# Streamlit
+.streamlit/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Playwright MCP
+.playwright-mcp/

@@ -201,13 +201,44 @@ public final class LifecycleModule extends Module {
       attributes.put(Person.MULTIPLE_BIRTH_STATUS, person.randInt(3) + 1);
     }
 
+    // D'abord déterminer le lieu de naissance (nécessaire pour le NIR français)
+    String city = (String) attributes.get(Person.CITY);
+    Location location = (Location) attributes.get(Person.LOCATION);
+    String[] birthPlace = null;
+    int birthDepartment = 75; // Paris par défaut (pour le NIR français)
+
+    if (location != null) {
+      // A null location should never happen in practice, but can happen in unit tests
+      location.assignPoint(person, city);
+      String zipCode = location.getZipCode(city, person);
+      person.attributes.put(Person.ZIP, zipCode);
+      person.attributes.put(Person.FIPS, Location.getFipsCodeByZipCode(zipCode));
+      if ("english".equalsIgnoreCase((String) attributes.get(Person.FIRST_LANGUAGE))) {
+        birthPlace = location.randomBirthPlace(person);
+      } else {
+        birthPlace = location.randomBirthplaceByLanguage(
+            person, (String) person.attributes.get(Person.FIRST_LANGUAGE));
+      }
+      attributes.put(Person.BIRTH_CITY, birthPlace[0]);
+      attributes.put(Person.BIRTH_STATE, birthPlace[1]);
+      attributes.put(Person.BIRTH_COUNTRY, birthPlace[2]);
+      // For CSV exports so we don't break any existing schemas
+      attributes.put(Person.BIRTHPLACE, birthPlace[3]);
+
+      // Extraire le département du lieu de naissance pour le NIR français
+      if ("FR".equals(COUNTRY_CODE)) {
+        birthDepartment = extractDepartmentFromBirthPlace(birthPlace, person);
+      }
+    }
+
+    // Ensuite générer le SSN/NIR
     String ssn;
     if ("FR".equals(COUNTRY_CODE)) {
       // French NIR (Numéro d'Inscription au Répertoire): S AA MM DD CCC NNN CC
       // S: Sex (1=male, 2=female)
       // AA: Year of birth (2 digits)
       // MM: Month of birth (01-12)
-      // DD: Department code (01-95)
+      // DD: Department code (basé sur le lieu de naissance)
       // CCC: Commune code (001-999)
       // NNN: Order number (001-999)
       // CC: Control key = 97 - (number mod 97)
@@ -216,7 +247,7 @@ public final class LifecycleModule extends Module {
       cal.setTimeInMillis(time);
       int birthYear = cal.get(java.util.Calendar.YEAR) % 100;
       int birthMonth = cal.get(java.util.Calendar.MONTH) + 1;
-      int department = person.randInt(95) + 1; // 01-95
+      int department = birthDepartment; // Utilise le département du lieu de naissance
       int commune = person.randInt(999) + 1;   // 001-999
       int orderNum = person.randInt(999) + 1;  // 001-999
       // Build the 13-digit number (without control key)
@@ -231,28 +262,6 @@ public final class LifecycleModule extends Module {
           + ((person.randInt(9999 - 1000 + 1) + 1000));
     }
     attributes.put(Person.IDENTIFIER_SSN, ssn);
-
-    String city = (String) attributes.get(Person.CITY);
-    Location location = (Location) attributes.get(Person.LOCATION);
-    if (location != null) {
-      // A null location should never happen in practice, but can happen in unit tests
-      location.assignPoint(person, city);
-      String zipCode = location.getZipCode(city, person);
-      person.attributes.put(Person.ZIP, zipCode);
-      person.attributes.put(Person.FIPS, Location.getFipsCodeByZipCode(zipCode));
-      String[] birthPlace;
-      if ("english".equalsIgnoreCase((String) attributes.get(Person.FIRST_LANGUAGE))) {
-        birthPlace = location.randomBirthPlace(person);
-      } else {
-        birthPlace = location.randomBirthplaceByLanguage(
-            person, (String) person.attributes.get(Person.FIRST_LANGUAGE));
-      }
-      attributes.put(Person.BIRTH_CITY, birthPlace[0]);
-      attributes.put(Person.BIRTH_STATE, birthPlace[1]);
-      attributes.put(Person.BIRTH_COUNTRY, birthPlace[2]);
-      // For CSV exports so we don't break any existing schemas
-      attributes.put(Person.BIRTHPLACE, birthPlace[3]);
-    }
 
     attributes.put(Person.ACTIVE_WEIGHT_MANAGEMENT, false);
     // TODO: Why are the percentiles a vital sign? Sounds more like an attribute?
@@ -1383,5 +1392,93 @@ public final class LifecycleModule extends Module {
     Attributes.inventory(attributes, m, QUIT_SMOKING_AGE, false, true, "Numeric");
     Attributes.inventory(attributes, m, QUIT_SMOKING_PROBABILITY, false, true, "1.0");
     Attributes.inventory(attributes, m, DAYS_UNTIL_DEATH, false, true, "42");
+  }
+
+  /**
+   * Extrait le code département français du lieu de naissance.
+   * Utilisé pour générer un NIR cohérent avec le lieu de naissance.
+   * @param birthPlace tableau [city, state, country, fullAddress]
+   * @param person pour l'aléatoire si nécessaire (fallback)
+   * @return code département (01-95, ou 2A/2B pour la Corse)
+   */
+  private static int extractDepartmentFromBirthPlace(String[] birthPlace, Person person) {
+    if (birthPlace == null || birthPlace.length < 2) {
+      return person.randInt(95) + 1; // fallback aléatoire
+    }
+
+    String region = birthPlace[1]; // state = région française
+    String city = birthPlace[0];   // ville de naissance
+
+    // Mapping des grandes villes vers leur département exact
+    Map<String, Integer> cityToDept = new HashMap<>();
+    cityToDept.put("Paris", 75);
+    cityToDept.put("Marseille", 13);
+    cityToDept.put("Lyon", 69);
+    cityToDept.put("Toulouse", 31);
+    cityToDept.put("Nice", 6);
+    cityToDept.put("Nantes", 44);
+    cityToDept.put("Montpellier", 34);
+    cityToDept.put("Strasbourg", 67);
+    cityToDept.put("Bordeaux", 33);
+    cityToDept.put("Lille", 59);
+    cityToDept.put("Rennes", 35);
+    cityToDept.put("Reims", 51);
+    cityToDept.put("Saint-Étienne", 42);
+    cityToDept.put("Le Havre", 76);
+    cityToDept.put("Toulon", 83);
+    cityToDept.put("Grenoble", 38);
+    cityToDept.put("Dijon", 21);
+    cityToDept.put("Angers", 49);
+    cityToDept.put("Nîmes", 30);
+    cityToDept.put("Villeurbanne", 69);
+    cityToDept.put("Clermont-Ferrand", 63);
+    cityToDept.put("Aix-en-Provence", 13);
+    cityToDept.put("Brest", 29);
+    cityToDept.put("Le Mans", 72);
+    cityToDept.put("Amiens", 80);
+    cityToDept.put("Tours", 37);
+    cityToDept.put("Limoges", 87);
+    cityToDept.put("Perpignan", 66);
+    cityToDept.put("Metz", 57);
+    cityToDept.put("Besançon", 25);
+    cityToDept.put("Orléans", 45);
+    cityToDept.put("Rouen", 76);
+    cityToDept.put("Caen", 14);
+    cityToDept.put("Nancy", 54);
+    cityToDept.put("Avignon", 84);
+    cityToDept.put("Poitiers", 86);
+    cityToDept.put("La Rochelle", 17);
+    cityToDept.put("Pau", 64);
+    cityToDept.put("Calais", 62);
+    cityToDept.put("Ajaccio", 20);
+    cityToDept.put("Bastia", 20);
+
+    // Vérifier d'abord la ville
+    if (city != null && cityToDept.containsKey(city)) {
+      return cityToDept.get(city);
+    }
+
+    // Sinon, mapping région -> département principal (préfecture)
+    Map<String, Integer> regionToDept = new HashMap<>();
+    regionToDept.put("Île-de-France", 75);
+    regionToDept.put("Provence-Alpes-Côte d'Azur", 13);
+    regionToDept.put("Auvergne-Rhône-Alpes", 69);
+    regionToDept.put("Occitanie", 31);
+    regionToDept.put("Nouvelle-Aquitaine", 33);
+    regionToDept.put("Hauts-de-France", 59);
+    regionToDept.put("Grand Est", 67);
+    regionToDept.put("Pays de la Loire", 44);
+    regionToDept.put("Bretagne", 35);
+    regionToDept.put("Normandie", 76);
+    regionToDept.put("Bourgogne-Franche-Comté", 21);
+    regionToDept.put("Centre-Val de Loire", 45);
+    regionToDept.put("Corse", 20);
+
+    if (region != null && regionToDept.containsKey(region)) {
+      return regionToDept.get(region);
+    }
+
+    // Fallback : département aléatoire (métropole)
+    return person.randInt(95) + 1;
   }
 }

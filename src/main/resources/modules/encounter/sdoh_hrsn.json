@@ -1062,6 +1062,35 @@
       "type": "Simple",
       "conditional_transition": [
         {
+          "transition": "Retired",
+          "condition": {
+            "condition_type": "Age",
+            "operator": ">=",
+            "quantity": 62,
+            "unit": "years"
+          }
+        },
+        {
+          "transition": "Q11_Employment_Check"
+        }
+      ]
+    },
+    "Retired": {
+      "type": "ConditionOnset",
+      "assign_to_attribute": "employment_condition",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "105493001",
+          "display": "Retired (finding)"
+        }
+      ],
+      "direct_transition": "Q12"
+    },
+    "Q11_Employment_Check": {
+      "type": "Simple",
+      "conditional_transition": [
+        {
           "transition": "Check Unemployment Change",
           "condition": {
             "condition_type": "Attribute",
@@ -2454,11 +2483,11 @@
           "distributions": [
             {
               "transition": "A21_Yes",
-              "distribution": 0.055
+              "distribution": 0.082
             },
             {
               "transition": "A21_No",
-              "distribution": 0.945
+              "distribution": 0.918
             }
           ]
         },
@@ -2466,11 +2495,11 @@
           "distributions": [
             {
               "transition": "A21_Yes",
-              "distribution": 0.052
+              "distribution": 0.025
             },
             {
               "transition": "A21_No",
-              "distribution": 0.948
+              "distribution": 0.975
             }
           ]
         }
