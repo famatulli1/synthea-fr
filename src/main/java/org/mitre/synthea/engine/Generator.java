@@ -103,8 +103,16 @@ public class Generator {
   private boolean onlyVeterans;
   private Module keepPatientsModule;
   private Long maxAttemptsToKeepPatient;
-  /** The state to default to */
-  public static String DEFAULT_STATE = "Massachusetts";
+  /** The state to default to - configurable based on country code */
+  public static String DEFAULT_STATE = getDefaultState();
+
+  private static String getDefaultState() {
+    String countryCode = Config.get("generate.geography.country_code", "US");
+    if ("FR".equals(countryCode)) {
+      return "Île-de-France";
+    }
+    return "Massachusetts";
+  }
   private Exporter.ExporterRuntimeOptions exporterRuntimeOptions;
   /**
    * EntityManager is used to manage fixed patient demographics records.

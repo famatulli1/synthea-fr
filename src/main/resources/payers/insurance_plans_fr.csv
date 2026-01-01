@@ -1,0 +1,9 @@
+Payer Id,Plan Id,Name,Services Covered,Deductible,Default Coinsurance,Default Copay,Monthly Premium,Max Out of Pocket,Medicare Supplement,Is ACA Plan,Income Based Premium,Eligibility Policy,Start Year,End Year,Priority Level,Notes
+10000,10001,Régime Général - Assurance Maladie,*,0,0.7,1,0,0,false,false,false,Generic,1945,,1,French Social Security covers 70% of healthcare costs
+20000,20001,CPAM Plan Standard,*,0,0.7,1,0,0,false,false,false,Generic,1945,,1,Local CPAM coverage
+30000,30001,Mutuelle Générale - Formule Essentielle,*,0,0.95,0,35,500,true,false,false,Generic,1970,,2,Complementary insurance basic
+40000,40001,Harmonie Mutuelle - Formule Confort,*,0,1.0,0,55,200,true,false,false,Generic,1970,,2,Complementary insurance comfort
+50000,50001,MAIF - Garantie Santé,*,0,0.95,0,45,300,true,false,false,Generic,1970,,2,Complementary insurance MAIF
+60000,60001,AXA Santé - Formule Complète,*,0,1.0,0,75,100,true,false,false,Generic,1970,,2,Premium complementary insurance
+70000,70001,Groupama - Santé Active,*,0,0.95,0,50,250,true,false,false,Generic,1970,,2,Complementary insurance Groupama
+80000,80001,CSS - Complémentaire Santé Solidaire,*,0,1.0,0,0,0,false,false,true,CSSEligible,2000,,1,100% coverage for low income (replaces CMU-C)

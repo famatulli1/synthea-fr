@@ -157,6 +157,7 @@ public class Demographics implements Comparable<Demographics>, Serializable {
    * Selects a language based on race and ethnicity.
    * For those of Hispanic ethnicity, language statistics are pulled from the national distribution
    * of spoken languages. For non-Hispanic, national distributions by race are used.
+   * For France (country_code=FR), returns "french" for the vast majority of the population.
    * @param race US Census race
    * @param ethnicity "hispanic" or "nonhispanic"
    * @param random the random number generator to use
@@ -164,6 +165,42 @@ public class Demographics implements Comparable<Demographics>, Serializable {
    */
   public String languageFromRaceAndEthnicity(String race, String ethnicity,
       RandomNumberGenerator random) {
+    // For France, language depends on race/origin
+    String countryCode = Config.get("generate.geography.country_code", "US");
+    if ("FR".equals(countryCode)) {
+      RandomCollection<String> frenchLanguageUsage = new RandomCollection<>();
+
+      switch (race) {
+        case "north_african":
+          // North African origin: French majority, significant Arabic minority
+          frenchLanguageUsage.add(0.65, "french");
+          frenchLanguageUsage.add(0.30, "arabic");
+          frenchLanguageUsage.add(0.05, "berber");
+          break;
+        case "sub_saharan":
+          // Sub-Saharan African origin: French majority, some African languages
+          frenchLanguageUsage.add(0.80, "french");
+          frenchLanguageUsage.add(0.15, "wolof");
+          frenchLanguageUsage.add(0.05, "lingala");
+          break;
+        case "asian":
+          // Asian origin in France: French majority, Chinese minority
+          frenchLanguageUsage.add(0.85, "french");
+          frenchLanguageUsage.add(0.10, "chinese");
+          frenchLanguageUsage.add(0.05, "vietnamese");
+          break;
+        case "european":
+        case "other":
+        default:
+          // European/other: predominantly French
+          frenchLanguageUsage.add(0.97, "french");
+          frenchLanguageUsage.add(0.01, "portuguese");
+          frenchLanguageUsage.add(0.01, "italian");
+          frenchLanguageUsage.add(0.01, "spanish");
+          break;
+      }
+      return frenchLanguageUsage.next(random);
+    }
     if (ethnicity.equals("hispanic")) {
       RandomCollection<String> hispanicLanguageUsage = new RandomCollection<>();
       // https://factfinder.census.gov/faces/tableservices/jsf/pages/productview.xhtml?pid=ACS_17_5YR_B16006&prodType=table
@@ -460,6 +497,10 @@ public class Demographics implements Comparable<Demographics>, Serializable {
   private static final List<String> CSV_RACES = Arrays.asList(
       "WHITE", "BLACK", "ASIAN", "NATIVE", "OTHER");
 
+  // French-specific race categories for country_code=FR
+  private static final List<String> CSV_RACES_FR = Arrays.asList(
+      "EUROPEAN", "NORTH_AFRICAN", "SUB_SAHARAN", "ASIAN", "OTHER");
+
   private static final List<String> CSV_INCOMES = Arrays.asList(
       "00..10", "10..15", "15..25", "25..35", "35..50",
       "50..75", "75..100", "100..150", "150..200", "200..999");
@@ -504,23 +545,34 @@ public class Demographics implements Comparable<Demographics>, Serializable {
 
     double percentageTotal = 0;
     d.race = new HashMap<String, Double>();
-    for (String race : CSV_RACES) {
-      double percentage = Double.parseDouble(line.get(race));
-      d.race.put(race.toLowerCase(), percentage);
-      percentageTotal += percentage;
+
+    // Choose race categories based on country code
+    String countryCode = Config.get("generate.geography.country_code", "US");
+    List<String> raceCategories = "FR".equals(countryCode) ? CSV_RACES_FR : CSV_RACES;
+
+    for (String race : raceCategories) {
+      String raceValue = line.get(race);
+      if (raceValue != null && !raceValue.isEmpty()) {
+        double percentage = Double.parseDouble(raceValue);
+        d.race.put(race.toLowerCase(), percentage);
+        percentageTotal += percentage;
+      }
     }
-    if (percentageTotal < 1.0) {
-      // Account for Hawaiian and Pacific Islanders
+
+    if (!"FR".equals(countryCode)) {
+      // US-specific: Account for Hawaiian and Pacific Islanders
       // and mixed race responses, and responses
       // that chose not to answer the race question.
-      double percentageRemainder = (1.0 - percentageTotal);
-      double hawaiian = 0.5 * percentageRemainder;
-      double other = percentageRemainder - hawaiian;
-      d.race.put("hawaiian", hawaiian);
-      d.race.put("other", other);
-    } else {
-      d.race.put("hawaiian", 0.0);
-      d.race.put("other", 0.0);
+      if (percentageTotal < 1.0) {
+        double percentageRemainder = (1.0 - percentageTotal);
+        double hawaiian = 0.5 * percentageRemainder;
+        double other = percentageRemainder - hawaiian;
+        d.race.put("hawaiian", hawaiian);
+        d.race.put("other", other);
+      } else {
+        d.race.put("hawaiian", 0.0);
+        d.race.put("other", 0.0);
+      }
     }
     nonZeroDefaults(d.race);
 

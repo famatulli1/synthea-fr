@@ -1,0 +1,227 @@
+{
+  "hepb": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "08",
+      "display": "Hep B, adolescent or pediatric"
+    },
+    "remark": "French calendar: birth, 2 months, 11 months (mandatory since 2018)",
+    "at_months": [
+      0,
+      2,
+      11
+    ],
+    "first_available": 1981
+  },
+  "dtap": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "20",
+      "display": "DTaP"
+    },
+    "remark": "French calendar: 2, 4, 11 months, boosters at 6 years, 11-13 years (mandatory since 2018)",
+    "at_months": [
+      2,
+      4,
+      11,
+      72,
+      144
+    ],
+    "first_available": 1997
+  },
+  "hib": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "49",
+      "display": "Hib (PRP-OMP)"
+    },
+    "remark": "French calendar: 2, 4, 11 months (mandatory since 2018)",
+    "at_months": [
+      2,
+      4,
+      11
+    ],
+    "first_available": 1977
+  },
+  "pcv13": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "133",
+      "display": "Pneumococcal conjugate PCV 13"
+    },
+    "remark": "French calendar: 2, 4, 11 months (mandatory since 2018)",
+    "at_months": [
+      2,
+      4,
+      11
+    ],
+    "first_available": 2010
+  },
+  "ipv": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "10",
+      "display": "IPV"
+    },
+    "remark": "French calendar: 2, 4, 11 months, boosters at 6 years, 11-13 years (part of DTP, mandatory)",
+    "at_months": [
+      2,
+      4,
+      11,
+      72,
+      144
+    ],
+    "first_available": 1955
+  },
+  "mmr": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "03",
+      "display": "MMR"
+    },
+    "remark": "French calendar: 12 months, 16-18 months (mandatory since 2018)",
+    "at_months": [
+      12,
+      17
+    ],
+    "first_available": 1971
+  },
+  "men_c": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "114",
+      "display": "meningococcal MCV4P"
+    },
+    "remark": "French calendar: 5 months, 12 months (mandatory since 2018)",
+    "at_months": [
+      5,
+      12
+    ],
+    "first_available": 2005
+  },
+  "flu": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "140",
+      "display": "Influenza, split virus, trivalent, PF"
+    },
+    "remark": "French calendar: annual for persons 65+ and at-risk groups",
+    "at_months": [
+      780,
+      792,
+      804,
+      816,
+      828,
+      840,
+      852,
+      864,
+      876,
+      888,
+      900,
+      912,
+      924,
+      936,
+      948,
+      960,
+      972,
+      984,
+      996,
+      1008,
+      1020,
+      1032,
+      1044,
+      1056,
+      1068,
+      1080,
+      1092,
+      1104,
+      1116,
+      1128,
+      1140,
+      1152,
+      1164,
+      1176,
+      1188,
+      1200
+    ],
+    "first_available": 1945
+  },
+  "hpv": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "62",
+      "display": "HPV, quadrivalent"
+    },
+    "remark": "French calendar: 11-14 years (2 doses, 6 months apart), recommended for both boys and girls since 2021",
+    "at_months": [
+      132,
+      138
+    ],
+    "first_available": 2006
+  },
+  "tdap": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "115",
+      "display": "Tdap"
+    },
+    "remark": "French calendar: booster at 25 years",
+    "at_months": [
+      300
+    ],
+    "first_available": 2005
+  },
+  "td": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "113",
+      "display": "Td (adult), 5 Lf tetanus toxoid, preservative free, adsorbed"
+    },
+    "remark": "French calendar: boosters at 45 years, 65 years, then every 10 years",
+    "at_months": [
+      540,
+      780,
+      900,
+      1020,
+      1140
+    ],
+    "first_available": 1992
+  },
+  "zoster": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "121",
+      "display": "zoster vaccine, live"
+    },
+    "remark": "French calendar: recommended at 65 years",
+    "at_months": [
+      780
+    ],
+    "first_available": 2006
+  },
+  "ppsv23": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "33",
+      "display": "pneumococcal polysaccharide vaccine, 23 valent"
+    },
+    "remark": "French calendar: for at-risk adults 65+",
+    "at_months": [
+      780
+    ],
+    "first_available": 1983
+  },
+  "covid19": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "208",
+      "display": "COVID-19, mRNA, LNP-S, PF, 30 mcg/0.3 mL dose"
+    },
+    "remark": "French calendar: recommended for all adults, boosters for 65+ and at-risk",
+    "at_months": [
+      216,
+      222
+    ],
+    "first_available": 2021
+  }
+}

@@ -244,6 +244,43 @@ public class FhirR4 {
     return useUSCore7;
   }
 
+
+  /**
+   * Get the appropriate currency code based on the configured country.
+   * Returns EUR for European countries, GBP for UK, JPY for Japan, USD otherwise.
+   * @return ISO 4217 currency code
+   */
+  protected static String getCurrency() {
+    String countryCode = Config.get("generate.geography.country_code", "US");
+    switch (countryCode) {
+      case "FR":
+      case "DE":
+      case "ES":
+      case "IT":
+      case "BE":
+      case "NL":
+      case "PT":
+      case "AT":
+      case "IE":
+      case "FI":
+      case "GR":
+      case "LU":
+        return "EUR";
+      case "GB":
+        return "GBP";
+      case "JP":
+        return "JPY";
+      case "CA":
+        return "CAD";
+      case "AU":
+        return "AUD";
+      case "CH":
+        return "CHF";
+      default:
+        return "USD";
+    }
+  }
+
   private static final String COUNTRY_CODE = Config.get("generate.geography.country_code");
   private static final String PASSPORT_URI = Config.get("generate.geography.passport_uri", "http://hl7.org/fhir/sid/passport-USA");
 
@@ -1174,7 +1211,7 @@ public class FhirR4 {
 
     Money moneyResource = new Money();
     moneyResource.setValue(claim.getTotalClaimCost());
-    moneyResource.setCurrency("USD");
+    moneyResource.setCurrency(getCurrency());
     claimResource.setTotal(moneyResource);
 
     BundleEntryComponent medicationClaimEntry =
@@ -1261,7 +1298,7 @@ public class FhirR4 {
 
         // calculate the cost of the procedure
         Money moneyResource = new Money();
-        moneyResource.setCurrency("USD");
+        moneyResource.setCurrency(getCurrency());
         moneyResource.setValue(item.getCost());
         claimItem.setNet(moneyResource);
         claimResource.addItem(claimItem);
@@ -1310,7 +1347,7 @@ public class FhirR4 {
     }
 
     Money moneyResource = new Money();
-    moneyResource.setCurrency("USD");
+    moneyResource.setCurrency(getCurrency());
     moneyResource.setValue(encounter.claim.getTotalClaimCost());
     claimResource.setTotal(moneyResource);
 
@@ -1363,7 +1400,7 @@ public class FhirR4 {
 
     // cost is hardcoded to be USD in claim so this should be fine as well
     Money totalCost = new Money();
-    totalCost.setCurrency("USD");
+    totalCost.setCurrency(getCurrency());
     totalCost.setValue(claim.getTotalClaimCost());
     TotalComponent total = eob.addTotal();
     total.setAmount(totalCost);
@@ -1542,7 +1579,7 @@ public class FhirR4 {
                 .setDisplay("Line Beneficiary Coinsurance Amount"));
         coinsuranceAmount.getAmount()
             .setValue(0.2 * item.getNet().getValue().doubleValue()) //20% coinsurance
-            .setCurrency("USD");
+            .setCurrency(getCurrency());
 
         ExplanationOfBenefit.AdjudicationComponent lineProviderAmount =
             new ExplanationOfBenefit.AdjudicationComponent();
@@ -1554,7 +1591,7 @@ public class FhirR4 {
                 .setDisplay("Line Provider Payment Amount"));
         lineProviderAmount.getAmount()
             .setValue(0.8 * item.getNet().getValue().doubleValue())
-            .setCurrency("USD");
+            .setCurrency(getCurrency());
 
         // assume the allowed and submitted amounts are the same for now
         ExplanationOfBenefit.AdjudicationComponent submittedAmount =
@@ -1567,7 +1604,7 @@ public class FhirR4 {
                 .setDisplay("Line Submitted Charge Amount"));
         submittedAmount.getAmount()
             .setValue(item.getNet().getValue())
-            .setCurrency("USD");
+            .setCurrency(getCurrency());
 
         ExplanationOfBenefit.AdjudicationComponent allowedAmount =
             new ExplanationOfBenefit.AdjudicationComponent();
@@ -1579,7 +1616,7 @@ public class FhirR4 {
                 .setDisplay("Line Allowed Charge Amount"));
         allowedAmount.getAmount()
             .setValue(item.getNet().getValue())
-            .setCurrency("USD");
+            .setCurrency(getCurrency());
 
         ExplanationOfBenefit.AdjudicationComponent indicatorCode =
             new ExplanationOfBenefit.AdjudicationComponent();
@@ -1601,7 +1638,7 @@ public class FhirR4 {
                 .setDisplay("Line Beneficiary Part B Deductible Amount"));
         deductibleAmount.getAmount()
             .setValue(0)
-            .setCurrency("USD");
+            .setCurrency(getCurrency());
 
         List<ExplanationOfBenefit.AdjudicationComponent> adjudicationComponents = new ArrayList<>();
         adjudicationComponents.add(coinsuranceAmount);
@@ -1626,7 +1663,7 @@ public class FhirR4 {
     // There is no way to resolve this error.
     Money payment = new Money();
     payment.setValue(totalPayment)
-        .setCurrency("USD");
+        .setCurrency(getCurrency());
     eob.setPayment(new ExplanationOfBenefit.PaymentComponent()
         .setAmount(payment));
 

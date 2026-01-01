@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import org.mitre.synthea.helpers.Attributes;
 import org.mitre.synthea.helpers.Attributes.Inventory;
+import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
 import org.mitre.synthea.world.concepts.HealthRecord;
@@ -36,9 +37,16 @@ public class Immunizations {
   @SuppressWarnings({ "unchecked", "rawtypes" })
   private static final Map<String, Map> immunizationSchedule = loadImmunizationSchedule();
 
+  private static final String COUNTRY_CODE = Config.get("generate.geography.country_code", "US");
+
   @SuppressWarnings("rawtypes")
   private static Map loadImmunizationSchedule() {
-    String filename = "immunization_schedule.json";
+    String filename;
+    if ("FR".equals(COUNTRY_CODE)) {
+      filename = "immunization_schedule_fr.json";
+    } else {
+      filename = "immunization_schedule.json";
+    }
     try {
       String json = Utilities.readResource(filename);
       Gson g = new Gson();

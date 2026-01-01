@@ -571,7 +571,82 @@ public class Utilities {
       .registerTypeAdapterFactory(InnerClassTypeAdapterFactory.of(State.class, "type"))
       // as of JDK16, GSON can no longer handle certain sdk classes
       .registerTypeAdapter(Random.class, new SerializableTypeAdapter<Random>())
+      // Register Code adapter to ensure translations are applied
+      .registerTypeAdapter(org.mitre.synthea.world.concepts.HealthRecord.Code.class,
+          new CodeTypeAdapter())
       .create();
+  }
+
+  /**
+   * TypeAdapter for Code class to ensure translations are applied during deserialization.
+   */
+  private static class CodeTypeAdapter extends com.google.gson.TypeAdapter<org.mitre.synthea.world.concepts.HealthRecord.Code> {
+    @Override
+    public void write(com.google.gson.stream.JsonWriter out,
+        org.mitre.synthea.world.concepts.HealthRecord.Code code) throws java.io.IOException {
+      if (code == null) {
+        out.nullValue();
+        return;
+      }
+      out.beginObject();
+      out.name("system").value(code.system);
+      out.name("code").value(code.code);
+      out.name("display").value(code.display);
+      if (code.version != null) {
+        out.name("version").value(code.version);
+      }
+      if (code.valueSet != null) {
+        out.name("value_set").value(code.valueSet);
+      }
+      out.endObject();
+    }
+
+    @Override
+    public org.mitre.synthea.world.concepts.HealthRecord.Code read(
+        com.google.gson.stream.JsonReader in) throws java.io.IOException {
+      if (in.peek() == com.google.gson.stream.JsonToken.NULL) {
+        in.nextNull();
+        return null;
+      }
+      String system = null;
+      String code = null;
+      String display = null;
+      String version = null;
+      String valueSet = null;
+
+      in.beginObject();
+      while (in.hasNext()) {
+        String name = in.nextName();
+        switch (name) {
+          case "system":
+            system = in.nextString();
+            break;
+          case "code":
+            code = in.nextString();
+            break;
+          case "display":
+            display = in.nextString();
+            break;
+          case "version":
+            version = in.nextString();
+            break;
+          case "value_set":
+          case "valueSet":
+            valueSet = in.nextString();
+            break;
+          default:
+            in.skipValue();
+        }
+      }
+      in.endObject();
+
+      // Use the constructor that applies translation
+      org.mitre.synthea.world.concepts.HealthRecord.Code result =
+          new org.mitre.synthea.world.concepts.HealthRecord.Code(system, code, display);
+      result.version = version;
+      result.valueSet = valueSet;
+      return result;
+    }
   }
 
   /**

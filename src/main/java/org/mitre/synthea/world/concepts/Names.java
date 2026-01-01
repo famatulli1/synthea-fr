@@ -47,6 +47,12 @@ public class Names {
     List<String> choices;
     if ("spanish".equalsIgnoreCase(language)) {
       choices = (List<String>) names.get("spanish." + gender);
+    } else if ("french".equalsIgnoreCase(language)) {
+      choices = (List<String>) names.get("french." + gender);
+    } else if ("arabic".equalsIgnoreCase(language) || "berber".equalsIgnoreCase(language)) {
+      choices = (List<String>) names.get("arabic." + gender);
+    } else if ("wolof".equalsIgnoreCase(language) || "lingala".equalsIgnoreCase(language)) {
+      choices = (List<String>) names.get("west_african." + gender);
     } else {
       choices = (List<String>) names.get("english." + gender);
     }
@@ -74,6 +80,12 @@ public class Names {
     List<String> choices;
     if ("spanish".equalsIgnoreCase(language)) {
       choices = (List<String>) names.get("spanish.family");
+    } else if ("french".equalsIgnoreCase(language)) {
+      choices = (List<String>) names.get("french.family");
+    } else if ("arabic".equalsIgnoreCase(language) || "berber".equalsIgnoreCase(language)) {
+      choices = (List<String>) names.get("arabic.family");
+    } else if ("wolof".equalsIgnoreCase(language) || "lingala".equalsIgnoreCase(language)) {
+      choices = (List<String>) names.get("west_african.family");
     } else {
       choices = (List<String>) names.get("english.family");
     }
@@ -87,30 +99,49 @@ public class Names {
     return name;
   }
 
+  private static final String COUNTRY_CODE = Config.get("generate.geography.country_code", "US");
+
   /**
    * Generate a Street Address.
    * @param includeLine2 Whether or not the address should have a second line,
    *     which can take the form of an apartment, unit, or suite number.
    * @param person person to generate an address for.
-   * @return First name.
+   * @return Street address.
    */
   @SuppressWarnings("unchecked")
   public static String fakeAddress(boolean includeLine2, Person person) {
-    int number = person.randInt(1000) + 100;
-    List<String> n = (List<String>)names.get("english.family");
-    // for now just use family names as the street name.
-    // could expand with a few more but probably not worth it
-    String streetName = n.get(person.randInt(n.size()));
-    List<String> a = (List<String>)names.get("street.type");
-    String streetType = a.get(person.randInt(a.size()));
+    int number = person.randInt(1000) + 1;
 
-    if (includeLine2) {
-      int addtlNum = person.randInt(100);
-      List<String> s = (List<String>)names.get("street.secondary");
-      String addtlType = s.get(person.randInt(s.size()));
-      return number + " " + streetName + " " + streetType + " " + addtlType + " " + addtlNum;
+    if ("FR".equals(COUNTRY_CODE)) {
+      // French address format: "123 Rue Dupont" (number + type + name)
+      List<String> n = (List<String>) names.get("french.family");
+      String streetName = n.get(person.randInt(n.size()));
+      List<String> a = (List<String>) names.get("french.street.type");
+      String streetType = a.get(person.randInt(a.size()));
+
+      if (includeLine2) {
+        int addtlNum = person.randInt(100) + 1;
+        List<String> s = (List<String>) names.get("french.street.secondary");
+        String addtlType = s.get(person.randInt(s.size()));
+        return number + " " + streetType + " " + streetName + ", " + addtlType + " " + addtlNum;
+      } else {
+        return number + " " + streetType + " " + streetName;
+      }
     } else {
-      return number + " " + streetName + " " + streetType;
+      // US/English address format: "123 Smith Street" (number + name + type)
+      List<String> n = (List<String>) names.get("english.family");
+      String streetName = n.get(person.randInt(n.size()));
+      List<String> a = (List<String>) names.get("street.type");
+      String streetType = a.get(person.randInt(a.size()));
+
+      if (includeLine2) {
+        int addtlNum = person.randInt(100);
+        List<String> s = (List<String>) names.get("street.secondary");
+        String addtlType = s.get(person.randInt(s.size()));
+        return number + " " + streetName + " " + streetType + " " + addtlType + " " + addtlNum;
+      } else {
+        return number + " " + streetName + " " + streetType;
+      }
     }
   }
 

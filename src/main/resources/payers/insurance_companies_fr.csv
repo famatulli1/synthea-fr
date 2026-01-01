@@ -1,0 +1,9 @@
+Id,Name,Address,City,State Headquarterd,Zip,Phone,States Covered,Ownership
+10000,Assurance Maladie,50 Avenue du Professeur André Lemierre,Paris,Île-de-France,75020,3646,*,Government
+20000,CPAM Paris,21 Rue Georges Auric,Paris,Île-de-France,75948,3646,*,Government
+30000,Mutuelle Générale,4 Rue Diderot,Paris,Île-de-France,75012,0144208080,*,Private
+40000,Harmonie Mutuelle,143 Rue Blomet,Paris,Île-de-France,75015,0980980809,*,Private
+50000,MAIF,200 Avenue Salvador Allende,Niort,Nouvelle-Aquitaine,79038,0549732424,*,Private
+60000,AXA France,313 Terrasses de l'Arche,Nanterre,Île-de-France,92727,0140025000,*,Private
+70000,Groupama,8-10 Rue d'Astorg,Paris,Île-de-France,75383,0144567788,*,Private
+80000,CSS (Complémentaire Santé Solidaire),50 Avenue du Professeur André Lemierre,Paris,Île-de-France,75020,3646,*,Government

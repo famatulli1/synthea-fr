@@ -111,7 +111,7 @@ public class HealthRecord implements Serializable {
     public Code(String system, String code, String display) {
       this.system = system;
       this.code = code;
-      this.display = display;
+      this.display = TranslationManager.translate(system, code, display);
     }
 
     /**
@@ -123,7 +123,8 @@ public class HealthRecord implements Serializable {
     public Code(JsonObject definition) {
       this.system = definition.get("system").getAsString();
       this.code = definition.get("code").getAsString();
-      this.display = definition.get("display").getAsString();
+      String originalDisplay = definition.get("display").getAsString();
+      this.display = TranslationManager.translate(this.system, this.code, originalDisplay);
     }
 
     /**

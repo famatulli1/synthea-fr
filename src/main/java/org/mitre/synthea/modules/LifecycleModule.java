@@ -166,8 +166,21 @@ public final class LifecycleModule extends Module {
       attributes.put(Person.LAST_NAME, lastName);
       attributes.put(Person.NAME, firstName + " " + lastName);
 
-      String phoneNumber = "555-" + ((person.randInt(999 - 100 + 1) + 100)) + "-"
-          + ((person.randInt(9999 - 1000 + 1) + 1000));
+      String phoneNumber;
+      if ("FR".equals(COUNTRY_CODE)) {
+        // French phone numbers: 06 XX XX XX XX (mobile) or 01-05 XX XX XX XX (landline)
+        int prefix = person.rand() < 0.7 ? 6 : (person.randInt(5) + 1); // 70% mobile, 30% landline
+        phoneNumber = String.format("0%d %02d %02d %02d %02d",
+            prefix,
+            person.randInt(100),
+            person.randInt(100),
+            person.randInt(100),
+            person.randInt(100));
+      } else {
+        // US phone numbers
+        phoneNumber = "555-" + ((person.randInt(999 - 100 + 1) + 100)) + "-"
+            + ((person.randInt(9999 - 1000 + 1) + 1000));
+      }
       attributes.put(Person.TELECOM, phoneNumber);
 
       boolean hasStreetAddress2 = person.rand() < 0.5;
@@ -188,8 +201,35 @@ public final class LifecycleModule extends Module {
       attributes.put(Person.MULTIPLE_BIRTH_STATUS, person.randInt(3) + 1);
     }
 
-    String ssn = "999-" + ((person.randInt(99 - 10 + 1) + 10)) + "-"
-        + ((person.randInt(9999 - 1000 + 1) + 1000));
+    String ssn;
+    if ("FR".equals(COUNTRY_CODE)) {
+      // French NIR (Numéro d'Inscription au Répertoire): S AA MM DD CCC NNN CC
+      // S: Sex (1=male, 2=female)
+      // AA: Year of birth (2 digits)
+      // MM: Month of birth (01-12)
+      // DD: Department code (01-95)
+      // CCC: Commune code (001-999)
+      // NNN: Order number (001-999)
+      // CC: Control key = 97 - (number mod 97)
+      int sexCode = "M".equals(gender) ? 1 : 2;
+      java.util.Calendar cal = java.util.Calendar.getInstance();
+      cal.setTimeInMillis(time);
+      int birthYear = cal.get(java.util.Calendar.YEAR) % 100;
+      int birthMonth = cal.get(java.util.Calendar.MONTH) + 1;
+      int department = person.randInt(95) + 1; // 01-95
+      int commune = person.randInt(999) + 1;   // 001-999
+      int orderNum = person.randInt(999) + 1;  // 001-999
+      // Build the 13-digit number (without control key)
+      long nirBase = Long.parseLong(String.format("%d%02d%02d%02d%03d%03d",
+          sexCode, birthYear, birthMonth, department, commune, orderNum));
+      int controlKey = (int) (97 - (nirBase % 97));
+      ssn = String.format("%d %02d %02d %02d %03d %03d %02d",
+          sexCode, birthYear, birthMonth, department, commune, orderNum, controlKey);
+    } else {
+      // US SSN
+      ssn = "999-" + ((person.randInt(99 - 10 + 1) + 10)) + "-"
+          + ((person.randInt(9999 - 1000 + 1) + 1000));
+    }
     attributes.put(Person.IDENTIFIER_SSN, ssn);
 
     String city = (String) attributes.get(Person.CITY);

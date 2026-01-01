@@ -1,0 +1,3 @@
+Name,Poverty Multiplier,Income Threshold,Age Threshold,Qualifying Codes,Qualifying Attributes,Poverty Multiplier File,Spenddown File,Acceptance Likelihood,Sub-Eligibilities,Logical Operator,Notes
+Generic,,,,,,,,,,,Everyone is eligible for basic French healthcare
+CSSEligible,1.35,,,,,,,,,,CSS eligibility based on income below 135% poverty line
