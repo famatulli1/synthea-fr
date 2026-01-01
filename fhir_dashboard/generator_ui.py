@@ -112,6 +112,13 @@ def render_basic_tab():
         elif gender_option == "Femme":
             gender = "F"
 
+        # Patients vivants uniquement
+        only_alive = st.checkbox(
+            "🫀 Patients vivants uniquement",
+            value=False,
+            help="Ne génère que des patients non décédés à la date de référence"
+        )
+
     with col2:
         # Tranche d'âge
         st.subheader("📅 Tranche d'âge")
@@ -146,6 +153,7 @@ def render_basic_tab():
         gender=gender,
         age_min=age_min,
         age_max=age_max,
+        only_alive=only_alive,
         advanced_mode=False
     )
 
@@ -240,6 +248,14 @@ def render_advanced_tab():
             help="Supprime les anciens fichiers FHIR avant de générer la nouvelle cohorte"
         )
 
+        # Patients vivants uniquement
+        only_alive = st.checkbox(
+            "🫀 Patients vivants uniquement",
+            value=False,
+            key="adv_only_alive",
+            help="Ne génère que des patients non décédés à la date de référence"
+        )
+
     st.divider()
 
     # Recherche et sélection de pathologies
@@ -277,6 +293,7 @@ def render_advanced_tab():
         years_of_history=years_of_history,
         reference_date=reference_date,
         clear_output=clear_output,
+        only_alive=only_alive,
         advanced_mode=True
     )
 
@@ -487,6 +504,7 @@ def render_generate_button(
     years_of_history: int = 10,
     reference_date: Optional[str] = None,
     clear_output: bool = True,
+    only_alive: bool = False,
     advanced_mode: bool = False
 ):
     """Bouton de génération avec gestion de l'exécution"""
@@ -600,7 +618,8 @@ def render_generate_button(
                     custom_prevalence=st.session_state.custom_prevalence.copy(),
                     years_of_history=years_of_history,
                     reference_date=reference_date,
-                    clear_output=clear_output
+                    clear_output=clear_output,
+                    only_alive=only_alive
                 )
 
                 # Lancer la génération

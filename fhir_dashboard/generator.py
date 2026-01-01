@@ -205,6 +205,7 @@ class GeneratorConfig:
     years_of_history: int = 10
     reference_date: Optional[str] = None  # Format YYYYMMDD
     clear_output: bool = True
+    only_alive: bool = False  # Ne générer que des patients vivants
 
 
 @dataclass
@@ -526,6 +527,10 @@ def build_synthea_command(config: GeneratorConfig) -> List[str]:
     cmd.append("--exporter.fhir.use_us_core_ig=false")
     cmd.append("--exporter.hospital.fhir.export=false")
     cmd.append("--exporter.practitioner.fhir.export=false")
+
+    # Patients vivants uniquement
+    if config.only_alive:
+        cmd.append("--generate.only_alive_patients=true")
 
     return cmd
 
