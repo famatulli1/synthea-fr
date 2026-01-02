@@ -58,9 +58,9 @@ RUN python3 -m venv /app/venv && \
 RUN mkdir -p /app/output/fhir /app/datasets && \
     chown -R synthea:synthea /app
 
-# Configuration Streamlit
-RUN mkdir -p /app/fhir_dashboard/.streamlit
-COPY fhir_dashboard/.streamlit/config.toml /app/fhir_dashboard/.streamlit/config.toml 2>/dev/null || true
+# Configuration Streamlit (créée inline si absente)
+RUN mkdir -p /app/fhir_dashboard/.streamlit && \
+    echo '[server]\naddress = "0.0.0.0"\nport = 8501\nheadless = true\n\n[browser]\ngatherUsageStats = false' > /app/fhir_dashboard/.streamlit/config.toml
 
 # Variables d'environnement
 ENV PYTHONUNBUFFERED=1
