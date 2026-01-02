@@ -200,25 +200,19 @@ AUTH_CONFIG = {
 
 # Providers LLM disponibles
 LLM_PROVIDERS = {
-    "anthropic": {
-        "label": "Anthropic (Claude)",
+    "mistral": {
+        "label": "Mistral AI",
         "models": [
-            "claude-3-haiku-20240307",
-            "claude-3-sonnet-20240229",
-            "claude-3-5-sonnet-20241022",
+            "mistral-small-latest",
+            "mistral-medium-latest",
+            "mistral-large-latest",
+            "codestral-latest",
+            "open-mistral-7b",
+            "open-mixtral-8x7b",
+            "open-mixtral-8x22b",
         ],
-        "default": "claude-3-haiku-20240307",
-        "env_var": "ANTHROPIC_API_KEY"
-    },
-    "openai": {
-        "label": "OpenAI (GPT)",
-        "models": [
-            "gpt-4o-mini",
-            "gpt-4o",
-            "gpt-3.5-turbo",
-        ],
-        "default": "gpt-4o-mini",
-        "env_var": "OPENAI_API_KEY"
+        "default": "mistral-small-latest",
+        "env_var": "MISTRAL_API_KEY"
     }
 }
 
