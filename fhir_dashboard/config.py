@@ -51,19 +51,47 @@ CLINICAL_STATUS = {
     'remission': 'Rémission',
 }
 
-# Codes SNOMED pour les conditions sociales (à séparer des diagnostics médicaux)
+# Codes SNOMED pour les conditions sociales et administratives (à séparer des diagnostics médicaux)
 SOCIAL_CONDITION_CODES = {
+    # Emploi / Statut professionnel
     '73438004',    # Sans emploi
     '160903007',   # Emploi à temps plein
     '160904001',   # Emploi à temps partiel
     '741062008',   # Inactif (Not in labor force)
     '105493001',   # Retraité(e)
+
+    # Éducation
+    '224299000',   # Études supérieures
+    '224294005',   # Études secondaires
+    '224293004',   # Études primaires
+    '473461003',   # Niveau d'études secondaires (variante)
+
+    # Logement / Transport
+    '105531004',   # Logement insatisfaisant
+    '266934004',   # Problème de transport
+    '713458007',   # Manque d'accès aux transports
+    '32911000',    # Sans domicile fixe
+
+    # Statut social / Juridique
     '266948004',   # Casier judiciaire
+    '446654005',   # Réfugié
+
+    # Violence / Sécurité
     '706893006',   # Victime de violence conjugale
     '424393004',   # Signalements de violence dans l'environnement
+
+    # Isolement / Stress
     '73595000',    # Stress
     '422650009',   # Isolement social
     '423315002',   # Contacts sociaux limités
+
+    # Comportements à risque (pas des pathologies)
+    '160968000',   # Implication dans des activités à risque
+
+    # Tâches administratives (pas des pathologies)
+    '314529007',   # Révision médicamenteuse à effectuer
+    '183932001',   # Procédure recommandée
+    '430193006',   # Rappel de médicament
 }
 
 # Statuts de ressources

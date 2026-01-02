@@ -2,14 +2,16 @@
 Générateur de cohortes synthétiques - Intégration Synthea
 """
 
+import csv
 import json
 import os
+import random
 import re
 import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 import shutil
 
 
@@ -18,6 +20,62 @@ SYNTHEA_PROJECT_PATH = Path(__file__).parent.parent
 SYNTHEA_JAR_PATH = SYNTHEA_PROJECT_PATH / "build" / "libs" / "synthea-with-dependencies.jar"
 SYNTHEA_MODULES_PATH = SYNTHEA_PROJECT_PATH / "src" / "main" / "resources" / "modules"
 FHIR_OUTPUT_PATH = SYNTHEA_PROJECT_PATH / "output" / "fhir"
+DEMOGRAPHICS_PATH = SYNTHEA_PROJECT_PATH / "src" / "main" / "resources" / "geography" / "demographics_fr.csv"
+
+
+def load_region_populations() -> Dict[str, int]:
+    """
+    Charge les populations par région depuis le fichier demographics.
+    Retourne un dict {region_name: total_population}
+    """
+    regions = {}
+    try:
+        with open(DEMOGRAPHICS_PATH, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                region = row.get('STNAME', '')
+                pop = int(row.get('TOT_POP', 0))
+                if region:
+                    regions[region] = regions.get(region, 0) + pop
+    except Exception as e:
+        # Fallback: retourne Île-de-France par défaut si erreur
+        return {"Île-de-France": 1}
+    return regions
+
+
+def distribute_patients_by_region(
+    total_patients: int,
+    regions: Dict[str, int]
+) -> List[Tuple[str, int]]:
+    """
+    Distribue les patients proportionnellement aux populations régionales.
+    Retourne une liste de (region_name, patient_count).
+    Utilise un algorithme qui garantit que le total = total_patients.
+    """
+    total_pop = sum(regions.values())
+    if total_pop == 0:
+        return [("Île-de-France", total_patients)]
+
+    # Calcul des proportions exactes
+    proportions = {r: (p / total_pop) * total_patients for r, p in regions.items()}
+
+    # Arrondir à l'entier inférieur
+    distribution = {r: int(p) for r, p in proportions.items()}
+
+    # Distribuer les patients restants aux régions avec la plus grande partie décimale
+    remaining = total_patients - sum(distribution.values())
+    if remaining > 0:
+        decimals = {r: proportions[r] - distribution[r] for r in proportions}
+        sorted_by_decimal = sorted(decimals.items(), key=lambda x: x[1], reverse=True)
+        for i, (region, _) in enumerate(sorted_by_decimal):
+            if i >= remaining:
+                break
+            distribution[region] += 1
+
+    # Filtrer les régions avec 0 patients et trier par population
+    result = [(r, c) for r, c in distribution.items() if c > 0]
+    result.sort(key=lambda x: x[1], reverse=True)
+    return result
 
 
 # Catégories de pathologies (français)
@@ -496,14 +554,27 @@ def restore_modified_modules(backup_paths: List[Path]) -> None:
                 print(f"Erreur restauration {backup_path}: {e}")
 
 
-def build_synthea_command(config: GeneratorConfig) -> List[str]:
+def build_synthea_command(
+    config: GeneratorConfig,
+    region: Optional[str] = None,
+    batch_size: Optional[int] = None,
+    batch_seed: Optional[int] = None
+) -> List[str]:
     """
     Construit la commande pour exécuter Synthea.
+
+    Args:
+        config: Configuration de base
+        region: Région spécifique (si None, Synthea utilise la première du fichier)
+        batch_size: Nombre de patients pour ce batch (remplace config.population_size)
+        batch_seed: Seed pour ce batch (remplace config.seed)
     """
+    pop_size = batch_size if batch_size is not None else config.population_size
+
     cmd = [
         "java", "-jar",
         str(SYNTHEA_JAR_PATH),
-        "-p", str(config.population_size),
+        "-p", str(pop_size),
     ]
 
     # Filtre par genre
@@ -513,9 +584,10 @@ def build_synthea_command(config: GeneratorConfig) -> List[str]:
     # Tranche d'âge
     cmd.extend(["-a", f"{config.age_min}-{config.age_max}"])
 
-    # Seed pour reproductibilité
-    if config.seed is not None:
-        cmd.extend(["-s", str(config.seed)])
+    # Seed pour reproductibilité (utiliser batch_seed si fourni)
+    seed = batch_seed if batch_seed is not None else config.seed
+    if seed is not None:
+        cmd.extend(["-s", str(seed)])
 
     # Date de référence
     if config.reference_date:
@@ -532,7 +604,58 @@ def build_synthea_command(config: GeneratorConfig) -> List[str]:
     if config.only_alive:
         cmd.append("--generate.only_alive_patients=true")
 
+    # Ajouter la région comme argument positionnel (à la fin)
+    if region:
+        cmd.append(region)
+
     return cmd
+
+
+def _run_single_batch(
+    config: GeneratorConfig,
+    region: str,
+    batch_size: int,
+    batch_seed: Optional[int],
+    progress_base: float,
+    progress_range: float,
+    progress_callback: Optional[Callable[[str, float], None]] = None
+) -> Tuple[bool, int, List[str]]:
+    """
+    Exécute une génération Synthea pour une région spécifique.
+    Retourne (success, patients_generated, log_lines)
+    """
+    cmd = build_synthea_command(config, region=region, batch_size=batch_size, batch_seed=batch_seed)
+
+    process = subprocess.Popen(
+        cmd,
+        cwd=str(SYNTHEA_PROJECT_PATH),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        env={**os.environ, 'JAVA_TOOL_OPTIONS': '-Dfile.encoding=UTF-8'}
+    )
+
+    log_lines = []
+    patients_generated = 0
+
+    for line in process.stdout:
+        log_lines.append(line)
+
+        if "Records:" in line:
+            match = re.search(r'Records:\s*(\d+)', line)
+            if match:
+                patients_generated = int(match.group(1))
+
+        elif "Running" in line and progress_callback:
+            match = re.search(r'(\d+)', line)
+            if match:
+                current = int(match.group(1))
+                progress = progress_base + (current / batch_size * progress_range * 0.8)
+                progress_callback(f"{region}: {current}/{batch_size}...", progress)
+
+    process.wait()
+    return process.returncode == 0, patients_generated, log_lines
 
 
 def run_synthea_generation(
@@ -541,6 +664,7 @@ def run_synthea_generation(
 ) -> GenerationResult:
     """
     Exécute la génération Synthea avec suivi de progression.
+    Distribue les patients proportionnellement aux populations régionales.
 
     Args:
         config: Configuration de génération
@@ -601,99 +725,87 @@ def run_synthea_generation(
                 progress_callback("Nettoyage des fichiers existants...", 0.05)
             clear_output_directory()
 
-        # Construire la commande
-        cmd = build_synthea_command(config)
+        # 3. DISTRIBUTION GÉOGRAPHIQUE par région
+        if progress_callback:
+            progress_callback("Calcul de la distribution régionale...", 0.08)
+
+        regions = load_region_populations()
+        distribution = distribute_patients_by_region(config.population_size, regions)
+
+        total_patients = 0
+        all_logs = []
+        batch_errors = []
+
+        # Calculer la progression par batch
+        num_batches = len(distribution)
+        progress_per_batch = 0.85 / num_batches  # Réserver 0.1-0.95 pour les batches
 
         if progress_callback:
-            progress_callback("Démarrage de Synthea...", 0.1)
+            region_list = ", ".join([f"{r}({n})" for r, n in distribution[:3]])
+            if len(distribution) > 3:
+                region_list += f"... ({len(distribution)} régions)"
+            progress_callback(f"Génération: {region_list}", 0.1)
 
-        # Exécuter Synthea
-        process = subprocess.Popen(
-            cmd,
-            cwd=str(SYNTHEA_PROJECT_PATH),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            env={**os.environ, 'JAVA_TOOL_OPTIONS': '-Dfile.encoding=UTF-8'}
-        )
+        # Générer par batch (une région à la fois)
+        for batch_idx, (region, batch_size) in enumerate(distribution):
+            progress_base = 0.1 + (batch_idx * progress_per_batch)
 
-        log_lines = []
-        patients_generated = 0
+            if progress_callback:
+                progress_callback(
+                    f"Région {batch_idx + 1}/{num_batches}: {region} ({batch_size} patients)...",
+                    progress_base
+                )
 
-        # Parser la sortie en temps réel
-        for line in process.stdout:
-            log_lines.append(line)
+            # Calculer un seed différent pour chaque batch si seed est défini
+            batch_seed = None
+            if config.seed is not None:
+                batch_seed = config.seed + batch_idx * 1000
 
-            # Parser les messages de progression
-            if "Running with seed" in line:
-                if progress_callback:
-                    progress_callback("Initialisation...", 0.15)
+            success, generated, logs = _run_single_batch(
+                config=config,
+                region=region,
+                batch_size=batch_size,
+                batch_seed=batch_seed,
+                progress_base=progress_base,
+                progress_range=progress_per_batch,
+                progress_callback=progress_callback
+            )
 
-            elif "Loading modules" in line:
-                if progress_callback:
-                    progress_callback("Chargement des modules...", 0.2)
+            total_patients += generated
+            all_logs.extend(logs)
+            all_logs.append(f"\n--- Fin batch {region}: {generated} patients ---\n")
 
-            elif "Generating" in line and "patients" in line:
-                if progress_callback:
-                    progress_callback("Génération des patients...", 0.25)
-
-            elif "Running" in line:
-                # Essayer d'extraire le numéro de patient
-                match = re.search(r'(\d+)', line)
-                if match:
-                    current = int(match.group(1))
-                    progress = 0.25 + (current / config.population_size * 0.6)
-                    progress = min(progress, 0.85)
-                    if progress_callback:
-                        progress_callback(
-                            f"Patient {current}/{config.population_size}...",
-                            progress
-                        )
-
-            elif "Records:" in line:
-                # Synthea affiche "Records: X" à la fin
-                match = re.search(r'Records:\s*(\d+)', line)
-                if match:
-                    patients_generated = int(match.group(1))
-                    if progress_callback:
-                        progress_callback("Export des fichiers FHIR...", 0.9)
-
-            elif "Exporting" in line or "export" in line.lower():
-                if progress_callback:
-                    progress_callback("Export en cours...", 0.92)
-
-        # Attendre la fin du processus
-        process.wait()
+            if not success:
+                batch_errors.append(f"{region}: échec de génération")
 
         execution_time = time.time() - start_time
 
         # Compter les patients réellement générés
         actual_count = count_generated_patients()
         if actual_count > 0:
-            patients_generated = actual_count
+            total_patients = actual_count
 
-        if process.returncode == 0:
-            if progress_callback:
-                progress_callback("Terminé!", 1.0)
+        if progress_callback:
+            progress_callback("Terminé!", 1.0)
 
-            return GenerationResult(
-                success=True,
-                patients_generated=patients_generated,
-                execution_time=execution_time,
-                output_path=str(FHIR_OUTPUT_PATH),
-                error_message=None,
-                log_output="".join(log_lines)
-            )
-        else:
+        if batch_errors and total_patients == 0:
             return GenerationResult(
                 success=False,
-                patients_generated=patients_generated,
+                patients_generated=0,
                 execution_time=execution_time,
                 output_path=str(FHIR_OUTPUT_PATH),
-                error_message=f"Synthea a retourné le code {process.returncode}",
-                log_output="".join(log_lines)
+                error_message="; ".join(batch_errors),
+                log_output="".join(all_logs)
             )
+
+        return GenerationResult(
+            success=True,
+            patients_generated=total_patients,
+            execution_time=execution_time,
+            output_path=str(FHIR_OUTPUT_PATH),
+            error_message=None if not batch_errors else f"Avertissements: {'; '.join(batch_errors)}",
+            log_output="".join(all_logs)
+        )
 
     except subprocess.TimeoutExpired:
         return GenerationResult(

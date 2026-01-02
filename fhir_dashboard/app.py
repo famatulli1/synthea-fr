@@ -28,6 +28,7 @@ from fhir_parser import (
 )
 from generator_ui import render_generator_tab
 from dataset_ui import render_dataset_mode, render_dataset_sidebar
+from stats_ui import render_stats_mode
 
 
 # =============================================================================
@@ -628,7 +629,7 @@ def main():
 
         # Sélecteur de mode
         st.markdown("### 🎛️ Mode")
-        mode_cols = st.columns(3)
+        mode_cols = st.columns(2)
         with mode_cols[0]:
             if st.button(
                 "📋 Explorer",
@@ -645,9 +646,19 @@ def main():
             ):
                 st.session_state.app_mode = 'generator'
                 st.rerun()
-        with mode_cols[2]:
+
+        mode_cols2 = st.columns(2)
+        with mode_cols2[0]:
             if st.button(
-                "📊 Dataset",
+                "📊 Stats",
+                type="primary" if st.session_state.app_mode == 'stats' else "secondary",
+                use_container_width=True
+            ):
+                st.session_state.app_mode = 'stats'
+                st.rerun()
+        with mode_cols2[1]:
+            if st.button(
+                "🗃️ Dataset",
                 type="primary" if st.session_state.app_mode == 'dataset' else "secondary",
                 use_container_width=True
             ):
@@ -719,6 +730,11 @@ def main():
     # Mode Générateur
     if st.session_state.app_mode == 'generator':
         render_generator_tab()
+        return
+
+    # Mode Statistiques
+    if st.session_state.app_mode == 'stats':
+        render_stats_mode()
         return
 
     # Mode Dataset Builder

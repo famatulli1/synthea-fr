@@ -171,3 +171,130 @@ def get_statistics() -> Dict:
         'cities': df['city'].nunique(),
         'regions': df['region'].nunique(),
     }
+
+
+@st.cache_data(ttl=3600)
+def load_all_resources() -> Dict[str, pd.DataFrame]:
+    """
+    Charge toutes les ressources de tous les patients pour les statistiques agregees.
+    Retourne un dictionnaire avec les DataFrames par type de ressource.
+    """
+    from fhir_parser import (
+        extract_conditions_df, extract_medications_df,
+        extract_allergies_df, extract_encounters_df,
+        extract_observations_df, extract_immunizations_df,
+        extract_procedures_df
+    )
+
+    all_conditions = []
+    all_medications = []
+    all_allergies = []
+    all_encounters = []
+    all_observations = []
+    all_immunizations = []
+    all_procedures = []
+
+    fhir_path = Path(FHIR_DIR)
+    if not fhir_path.exists():
+        return {}
+
+    json_files = list(fhir_path.glob("*.json"))
+
+    for filepath in json_files:
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                bundle = json.load(f)
+
+            # Extraire le patient_id
+            patient_id = None
+            resources_by_type = {}
+
+            for entry in bundle.get('entry', []):
+                resource = entry.get('resource', {})
+                resource_type = resource.get('resourceType')
+
+                if resource_type == 'Patient':
+                    patient_id = resource.get('id')
+
+                if resource_type not in resources_by_type:
+                    resources_by_type[resource_type] = []
+                resources_by_type[resource_type].append(resource)
+
+            if not patient_id:
+                continue
+
+            # Extraire les conditions
+            conditions = resources_by_type.get('Condition', [])
+            if conditions:
+                df = extract_conditions_df(conditions)
+                if not df.empty:
+                    df['patient_id'] = patient_id
+                    df['file'] = filepath.name
+                    all_conditions.append(df)
+
+            # Extraire les medications
+            medications = resources_by_type.get('MedicationRequest', [])
+            if medications:
+                df = extract_medications_df(medications)
+                if not df.empty:
+                    df['patient_id'] = patient_id
+                    df['file'] = filepath.name
+                    all_medications.append(df)
+
+            # Extraire les allergies
+            allergies = resources_by_type.get('AllergyIntolerance', [])
+            if allergies:
+                df = extract_allergies_df(allergies)
+                if not df.empty:
+                    df['patient_id'] = patient_id
+                    df['file'] = filepath.name
+                    all_allergies.append(df)
+
+            # Extraire les encounters
+            encounters = resources_by_type.get('Encounter', [])
+            if encounters:
+                df = extract_encounters_df(encounters)
+                if not df.empty:
+                    df['patient_id'] = patient_id
+                    df['file'] = filepath.name
+                    all_encounters.append(df)
+
+            # Extraire les observations
+            observations = resources_by_type.get('Observation', [])
+            if observations:
+                df = extract_observations_df(observations)
+                if not df.empty:
+                    df['patient_id'] = patient_id
+                    df['file'] = filepath.name
+                    all_observations.append(df)
+
+            # Extraire les immunizations
+            immunizations = resources_by_type.get('Immunization', [])
+            if immunizations:
+                df = extract_immunizations_df(immunizations)
+                if not df.empty:
+                    df['patient_id'] = patient_id
+                    df['file'] = filepath.name
+                    all_immunizations.append(df)
+
+            # Extraire les procedures
+            procedures = resources_by_type.get('Procedure', [])
+            if procedures:
+                df = extract_procedures_df(procedures)
+                if not df.empty:
+                    df['patient_id'] = patient_id
+                    df['file'] = filepath.name
+                    all_procedures.append(df)
+
+        except Exception as e:
+            continue
+
+    return {
+        'conditions': pd.concat(all_conditions, ignore_index=True) if all_conditions else pd.DataFrame(),
+        'medications': pd.concat(all_medications, ignore_index=True) if all_medications else pd.DataFrame(),
+        'allergies': pd.concat(all_allergies, ignore_index=True) if all_allergies else pd.DataFrame(),
+        'encounters': pd.concat(all_encounters, ignore_index=True) if all_encounters else pd.DataFrame(),
+        'observations': pd.concat(all_observations, ignore_index=True) if all_observations else pd.DataFrame(),
+        'immunizations': pd.concat(all_immunizations, ignore_index=True) if all_immunizations else pd.DataFrame(),
+        'procedures': pd.concat(all_procedures, ignore_index=True) if all_procedures else pd.DataFrame(),
+    }
