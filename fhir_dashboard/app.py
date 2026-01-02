@@ -13,12 +13,16 @@ from dateutil.relativedelta import relativedelta
 
 from config import (
     UI_CONFIG, GENDER_MAP, RESOURCE_LABELS, CHART_COLORS,
-    OBSERVATION_CATEGORIES, CLINICAL_STATUS
+    OBSERVATION_CATEGORIES, CLINICAL_STATUS, AUTH_CONFIG, FHIR_DIR
 )
 from data_loader import (
     load_patient_index, load_patient_bundle,
     get_resource_counts, get_statistics
 )
+import zipfile
+import io
+import os
+from pathlib import Path
 from fhir_parser import (
     parse_resources, extract_patient_info,
     extract_observations_df, extract_conditions_df,
@@ -72,6 +76,176 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+
+# =============================================================================
+# AUTHENTIFICATION
+# =============================================================================
+
+def check_password():
+    """Vérifie le mot de passe et gère l'état de connexion"""
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+
+    if st.session_state.authenticated:
+        return True
+
+    # Formulaire de connexion
+    st.markdown("""
+    <style>
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 1rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .login-title {
+            text-align: center;
+            color: white;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        .login-subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.8);
+            font-size: 1rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("## 🧬 Synthea-FR")
+        st.markdown("##### Générateur de données médicales synthétiques")
+        st.divider()
+
+        with st.form("login_form"):
+            username = st.text_input("👤 Identifiant", placeholder="Entrez votre identifiant")
+            password = st.text_input("🔒 Mot de passe", type="password", placeholder="Entrez votre mot de passe")
+            submit = st.form_submit_button("Se connecter", use_container_width=True)
+
+            if submit:
+                if username == AUTH_CONFIG['username'] and password == AUTH_CONFIG['password']:
+                    st.session_state.authenticated = True
+                    st.rerun()
+                else:
+                    st.error("❌ Identifiant ou mot de passe incorrect")
+
+        st.caption("💡 Identifiants par défaut : admin / synthea2026")
+
+    return False
+
+
+def logout():
+    """Déconnexion de l'utilisateur"""
+    st.session_state.authenticated = False
+    st.rerun()
+
+
+# =============================================================================
+# TÉLÉCHARGEMENT FHIR
+# =============================================================================
+
+def create_fhir_zip():
+    """Crée un fichier ZIP contenant tous les dossiers FHIR"""
+    zip_buffer = io.BytesIO()
+    fhir_path = Path(FHIR_DIR)
+
+    if not fhir_path.exists():
+        return None
+
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for file_path in fhir_path.glob('*.json'):
+            zip_file.write(file_path, file_path.name)
+
+    zip_buffer.seek(0)
+    return zip_buffer
+
+
+def get_fhir_stats():
+    """Retourne les statistiques des fichiers FHIR"""
+    fhir_path = Path(FHIR_DIR)
+    if not fhir_path.exists():
+        return {'count': 0, 'size': 0}
+
+    files = list(fhir_path.glob('*.json'))
+    total_size = sum(f.stat().st_size for f in files)
+    return {
+        'count': len(files),
+        'size': total_size
+    }
+
+
+# =============================================================================
+# MODE DOCUMENTATION
+# =============================================================================
+
+def render_documentation_mode():
+    """Affiche le mode Documentation avec accès au fichier justification"""
+    st.title("📚 Documentation Synthea-FR")
+
+    # Lire le fichier markdown
+    doc_path = Path(__file__).parent / "JUSTIFICATION_DONNEES_SYNTHETIQUES.md"
+
+    if doc_path.exists():
+        with open(doc_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Onglets pour la documentation
+        tab1, tab2 = st.tabs(["📖 Justification Données Synthétiques", "ℹ️ À propos"])
+
+        with tab1:
+            st.markdown(content)
+
+            # Bouton de téléchargement du document
+            st.divider()
+            st.download_button(
+                label="📥 Télécharger ce document (Markdown)",
+                data=content,
+                file_name="JUSTIFICATION_DONNEES_SYNTHETIQUES.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
+
+        with tab2:
+            st.markdown("""
+            ## 🧬 Synthea-FR
+
+            **Version** : 1.0
+            **Basé sur** : Synthea™ (The MITRE Corporation)
+
+            ### Qu'est-ce que Synthea-FR ?
+
+            Synthea-FR est une adaptation française de Synthea, un générateur de patients
+            synthétiques open-source. Il permet de créer des dossiers médicaux fictifs
+            mais réalistes au format FHIR, adaptés au contexte médical français.
+
+            ### Fonctionnalités
+
+            | Mode | Description |
+            |------|-------------|
+            | 📋 **Explorer** | Visualiser les dossiers patients générés |
+            | 🧬 **Générer** | Créer de nouvelles cohortes de patients |
+            | 📊 **Stats** | Analyser les statistiques de la cohorte |
+            | 🗃️ **Dataset** | Construire des datasets pour le fine-tuning LLM |
+            | 📚 **Docs** | Consulter la documentation |
+
+            ### Ressources
+
+            - [Synthea GitHub](https://github.com/synthetichealth/synthea)
+            - [FHIR R4 Specification](https://hl7.org/fhir/R4/)
+            - [SNOMED-CT Browser](https://browser.ihtsdotools.org/)
+
+            ### Licence
+
+            Ce projet est distribué sous licence Apache 2.0.
+            """)
+    else:
+        st.error("❌ Fichier de documentation non trouvé")
+        st.info(f"Chemin attendu : {doc_path}")
 
 
 # =============================================================================
@@ -619,6 +793,10 @@ def render_imaging_tab(resources: dict):
 # =============================================================================
 
 def main():
+    # Vérifier l'authentification
+    if not check_password():
+        return
+
     # Initialiser le mode de l'application
     if 'app_mode' not in st.session_state:
         st.session_state.app_mode = 'explorer'
@@ -627,7 +805,7 @@ def main():
     with st.sidebar:
         st.title(UI_CONFIG['sidebar_title'])
 
-        # Sélecteur de mode
+        # Sélecteur de mode (ligne 1)
         st.markdown("### 🎛️ Mode")
         mode_cols = st.columns(2)
         with mode_cols[0]:
@@ -647,6 +825,7 @@ def main():
                 st.session_state.app_mode = 'generator'
                 st.rerun()
 
+        # Sélecteur de mode (ligne 2)
         mode_cols2 = st.columns(2)
         with mode_cols2[0]:
             if st.button(
@@ -664,6 +843,19 @@ def main():
             ):
                 st.session_state.app_mode = 'dataset'
                 st.rerun()
+
+        # Sélecteur de mode (ligne 3)
+        mode_cols3 = st.columns(2)
+        with mode_cols3[0]:
+            if st.button(
+                "📚 Docs",
+                type="primary" if st.session_state.app_mode == 'docs' else "secondary",
+                use_container_width=True
+            ):
+                st.session_state.app_mode = 'docs'
+                st.rerun()
+        with mode_cols3[1]:
+            pass  # Espace réservé pour futur bouton
 
         st.divider()
 
@@ -683,6 +875,33 @@ def main():
         if st.button("🔄 Actualiser", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
+
+        st.divider()
+
+        # Section Export FHIR
+        st.markdown("### 📥 Export FHIR")
+        fhir_stats = get_fhir_stats()
+        if fhir_stats['count'] > 0:
+            size_mb = fhir_stats['size'] / (1024 * 1024)
+            st.caption(f"📁 {fhir_stats['count']} fichiers • {size_mb:.1f} MB")
+
+            zip_data = create_fhir_zip()
+            if zip_data:
+                st.download_button(
+                    label="📦 Télécharger tous les dossiers",
+                    data=zip_data,
+                    file_name="synthea_fr_fhir_export.zip",
+                    mime="application/zip",
+                    use_container_width=True
+                )
+        else:
+            st.caption("Aucun fichier FHIR disponible")
+
+        st.divider()
+
+        # Bouton de déconnexion
+        if st.button("🚪 Déconnexion", use_container_width=True, type="secondary"):
+            logout()
 
         st.divider()
 
@@ -742,9 +961,14 @@ def main():
         render_dataset_mode()
         return
 
+    # Mode Documentation
+    if st.session_state.app_mode == 'docs':
+        render_documentation_mode()
+        return
+
     # Mode Explorateur
     if not selected_file:
-        st.title("🏥 Dossier Médical FHIR")
+        st.title("🧬 Synthea-FR - Explorateur")
         st.info("Sélectionnez un patient dans la barre latérale pour explorer son dossier médical.")
         st.markdown("""
         ### 💡 Pour commencer

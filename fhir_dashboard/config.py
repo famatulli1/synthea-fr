@@ -180,12 +180,18 @@ TIMELINE_CATEGORIES = {
 
 # Configuration de l'interface
 UI_CONFIG = {
-    'page_title': 'Dossier Médical FHIR',
-    'page_icon': '🏥',
+    'page_title': 'Synthea-FR',
+    'page_icon': '🧬',
     'layout': 'wide',
-    'sidebar_title': '🏥 Dossier Médical',
+    'sidebar_title': '🧬 Synthea-FR',
     'date_format': '%d/%m/%Y',
     'datetime_format': '%d/%m/%Y %H:%M',
+}
+
+# Configuration authentification
+AUTH_CONFIG = {
+    'username': 'admin',
+    'password': 'synthea2026',  # Changez en production !
 }
 
 # =============================================================================
