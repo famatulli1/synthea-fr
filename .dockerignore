@@ -1,0 +1,71 @@
+# =============================================================================
+# Docker Ignore - Synthea-FR
+# =============================================================================
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# Python
+fhir_dashboard/venv/
+fhir_dashboard/__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Données générées (seront montées en volumes)
+output/
+datasets/
+
+# Logs et fichiers temporaires
+*.log
+*.tmp
+.streamlit/cache/
+.cache/
+
+# Documentation et fichiers non nécessaires
+*.md
+!README.md
+docs/
+LICENSE
+NOTICE
+
+# Tests
+test/
+tests/
+*_test.py
+test_*.py
+
+# Gradle cache (sera reconstruit)
+.gradle/
+
+# macOS
+.DS_Store
+*.DS_Store
+
+# Fichiers de configuration locale
+.env
+.env.local
+*.local
+
+# Fichiers volumineux inutiles pour le build
+*.zip
+*.tar.gz
+*.jar
+!build/libs/*.jar
