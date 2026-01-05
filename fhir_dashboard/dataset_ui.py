@@ -29,6 +29,8 @@ from dataset_builder.llm_client import (
 )
 from dataset_builder.core import estimate_generation
 from data_loader import load_patient_index, load_patient_bundle
+from background import JobManager, get_worker
+from background.worker import start_worker, get_job_manager
 
 
 def render_dataset_mode():
@@ -46,6 +48,9 @@ def render_dataset_mode():
     # Initialiser l'état de session
     _init_session_state()
 
+    # Démarrer le worker en arrière-plan
+    start_worker()
+
     # Vérifier si des patients sont disponibles
     patient_index = load_patient_index()
     if patient_index.empty:
@@ -53,6 +58,9 @@ def render_dataset_mode():
         return
 
     st.info(f"📁 {len(patient_index)} patients disponibles pour la génération de dataset")
+
+    # Section Jobs en arrière-plan (en haut)
+    render_background_jobs_section()
 
     # Configuration
     col1, col2 = st.columns([2, 1])
@@ -257,23 +265,34 @@ def render_estimation():
 
 def render_generate_button():
     """Bouton de génération"""
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # Validation
+    can_generate = (
+        st.session_state.dataset_use_cases and
+        st.session_state.dataset_api_key and
+        not st.session_state.dataset_is_generating
+    )
 
-    with col2:
-        # Validation
-        can_generate = (
-            st.session_state.dataset_use_cases and
-            st.session_state.dataset_api_key and
-            not st.session_state.dataset_is_generating
-        )
+    col1, col2 = st.columns(2)
 
+    with col1:
         if st.button(
-            "🚀 Générer le Dataset",
+            "🚀 Générer maintenant",
             type="primary",
             disabled=not can_generate,
-            use_container_width=True
+            use_container_width=True,
+            help="Génère le dataset et bloque l'interface jusqu'à la fin"
         ):
             run_generation()
+
+    with col2:
+        if st.button(
+            "📤 Générer en arrière-plan",
+            type="secondary",
+            disabled=not can_generate,
+            use_container_width=True,
+            help="Lance la génération en arrière-plan. Vous pouvez quitter la page."
+        ):
+            submit_background_job()
 
     # Barre de progression
     if st.session_state.dataset_is_generating:
@@ -476,6 +495,161 @@ def _format_jsonl(examples: List[Dict]) -> str:
     """Formate les exemples en JSONL"""
     lines = [json.dumps(ex, ensure_ascii=False) for ex in examples]
     return "\n".join(lines)
+
+
+def render_background_jobs_section():
+    """Affiche la section des jobs en arrière-plan"""
+    job_manager = get_job_manager()
+    jobs = job_manager.list_jobs()
+
+    if not jobs:
+        return
+
+    # Séparer les jobs par statut
+    running_jobs = [j for j in jobs if j.status == 'running']
+    pending_jobs = [j for j in jobs if j.status == 'pending']
+    completed_jobs = [j for j in jobs if j.status == 'completed']
+    failed_jobs = [j for j in jobs if j.status == 'failed']
+
+    # Section Jobs en cours
+    if running_jobs or pending_jobs:
+        st.subheader("🔄 Jobs en cours")
+
+        for job in running_jobs:
+            with st.container():
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    st.progress(job.progress)
+                    st.caption(f"🔄 **{job.id}** - {job.message}")
+                with col2:
+                    config = job.config
+                    st.caption(f"{config.get('num_patients', '?')} patients")
+                with col3:
+                    # Bouton refresh manuel
+                    if st.button("🔄", key=f"refresh_{job.id}", help="Actualiser"):
+                        st.rerun()
+
+        for job in pending_jobs:
+            st.caption(f"⏳ **{job.id}** - En attente...")
+
+        # Auto-refresh toutes les 3 secondes quand des jobs sont actifs
+        st.caption("⏱️ Actualisation automatique dans 3s...")
+        time.sleep(3)
+        st.rerun()
+
+    # Section Jobs terminés
+    if completed_jobs:
+        with st.expander(f"✅ Jobs terminés ({len(completed_jobs)})", expanded=True):
+            for job in completed_jobs[:5]:  # Afficher les 5 derniers
+                _render_completed_job(job, job_manager)
+
+    # Section Jobs échoués
+    if failed_jobs:
+        with st.expander(f"❌ Jobs échoués ({len(failed_jobs)})", expanded=False):
+            for job in failed_jobs[:5]:
+                _render_failed_job(job, job_manager)
+
+    # Séparateur si des jobs sont affichés
+    if completed_jobs or failed_jobs:
+        st.divider()
+
+
+def _render_completed_job(job, job_manager: JobManager):
+    """Affiche un job terminé avec bouton de téléchargement"""
+    col1, col2, col3 = st.columns([2, 1, 1])
+
+    config = job.config
+    stats = job.stats or {}
+
+    with col1:
+        # Format de la date
+        completed_at = job.completed_at
+        if completed_at:
+            try:
+                dt = datetime.fromisoformat(completed_at)
+                date_str = dt.strftime("%d/%m/%Y %H:%M")
+            except:
+                date_str = completed_at
+        else:
+            date_str = "?"
+
+        st.markdown(f"**{job.id}** - {date_str}")
+        st.caption(
+            f"{config.get('num_patients', '?')} patients | "
+            f"{stats.get('successful', '?')} exemples | "
+            f"Format: {config.get('output_format', '?')}"
+        )
+
+    with col2:
+        # Statistiques
+        tokens = stats.get('tokens', {})
+        if tokens:
+            st.caption(f"Tokens: {tokens.get('total', 0):,}")
+
+    with col3:
+        # Bouton téléchargement
+        result_file = job_manager.get_result_file(job.id)
+        if result_file and result_file.exists():
+            with open(result_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            st.download_button(
+                label="📥 Télécharger",
+                data=content,
+                file_name=result_file.name,
+                mime="application/jsonl",
+                key=f"download_{job.id}"
+            )
+        else:
+            st.caption("Fichier non disponible")
+
+        # Bouton supprimer
+        if st.button("🗑️", key=f"delete_{job.id}", help="Supprimer ce job"):
+            job_manager.delete_job(job.id)
+            st.rerun()
+
+
+def _render_failed_job(job, job_manager: JobManager):
+    """Affiche un job échoué"""
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        st.markdown(f"**{job.id}** - Échoué")
+        st.error(job.error or "Erreur inconnue")
+
+    with col2:
+        if st.button("🗑️", key=f"delete_failed_{job.id}", help="Supprimer ce job"):
+            job_manager.delete_job(job.id)
+            st.rerun()
+
+
+def submit_background_job():
+    """Soumet un job de génération en arrière-plan"""
+    # Créer la configuration du job
+    config = {
+        'num_patients': st.session_state.dataset_num_patients,
+        'use_cases': st.session_state.dataset_use_cases,
+        'output_format': st.session_state.dataset_format,
+        'examples_per_patient': st.session_state.dataset_examples_per_patient,
+        'llm_provider': st.session_state.dataset_provider,
+        'llm_model': st.session_state.dataset_model,
+        'api_key': st.session_state.dataset_api_key,
+        'vary_instructions': st.session_state.dataset_vary_instructions,
+        'include_system_prompt': True,
+        'temperature': 0.7,
+    }
+
+    # Créer le job
+    job_manager = get_job_manager()
+    job = job_manager.create_job(config)
+
+    # Message de confirmation
+    st.success(f"✅ Job **{job.id}** créé ! La génération démarrera automatiquement.")
+    st.info("💡 Vous pouvez quitter cette page. Revenez plus tard pour télécharger le résultat.")
+
+    # Rafraîchir pour afficher le job
+    time.sleep(1)
+    st.rerun()
 
 
 def render_dataset_sidebar():
